@@ -20,22 +20,25 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-/* Revision date: Mon Sep 20 23:26:21 UTC 2004 */
+/* Revision date: So Okt 16 22:18:25 UTC 2005 */
 
 #ifndef OPT_H
 #define OPT_H
 
-#include <stdio.h> /* FILE */
-
 #if HAVE_CONFIG_H
-#include <config.h>
+# include <config.h>
+#else
+# undef STDC_HEADERS
+# define STDC_HEADERS 1
+#endif
+
+#if STDC_HEADERS
+# include <stdio.h> /* FILE */
 #endif
 
 #ifndef OPT_GETTEXT_DOMAIN
-#define OPT_GETTEXT_DOMAIN "libc"
+# define OPT_GETTEXT_DOMAIN "libc"
 #endif
-
-#define ARG_MASK 0x000f
 
 enum { ARG_NONE, ARG_STRING, ARG_INT, ARG_LONG, ARG_FLOAT, ARG_DOUBLE };
 
@@ -54,13 +57,13 @@ enum {
 };
 
 struct Option {
-    const char *longname;
-    char shortname;
-    int arginfo;
-    void *arg;
-    int retval;
-    char *descrip;
-    char *arg_descrip;
+    const char *longname;  /* long option name, e.g. "help" */
+    char shortname;        /* short option name, e.g. 'h' */
+    int arginfo;           /* bitmask describing the arg (see enums above) */
+    void *arg;             /* location where to store the arg */
+    int retval;            /* if not 0, opt_next returns with that value */
+    char *descrip;         /* option description (e.g. "create FILE") */
+    char *arg_descrip;     /* arg description (e.g. "FILE") */
 };
 
 typedef struct OptContext * OptContext;

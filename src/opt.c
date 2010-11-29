@@ -20,7 +20,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-/* Revision date: Mon Sep 20 23:26:21 UTC 2004 */
+/* Revision date: So Okt 16 22:18:25 UTC 2005 */
 
 /* 
  * The API of this module is heavily influenced by both getopt and popt.
@@ -32,13 +32,18 @@
 
 #include "opt.h"
 
-#include <stdio.h> /* NULL */
-#include <stdlib.h> /* malloc, free, strtod, strtol */
-#include <string.h> /* strncmp */
-#include <ctype.h> /* isspace */
-
 #if HAVE_CONFIG_H
-#include <config.h>
+# include <config.h>
+#else
+# undef STDC_HEADERS
+# define STDC_HEADERS 1
+#endif
+
+#if STDC_HEADERS
+# include <stdio.h> /* NULL */
+# include <stdlib.h> /* malloc, free, strtod, strtol */
+# include <string.h> /* strncmp */
+# include <ctype.h> /* isspace */
 #endif
 
 #if ENABLE_NLS
@@ -47,6 +52,8 @@
 #else
 # define _(String) String
 #endif
+
+#define ARG_MASK 0x000f
 
 enum { OPT_NONE, OPT_SHORT, OPT_LONG };
 
@@ -59,22 +66,31 @@ static int lookup_short(struct Option *options, char s);
 static int lookup_long(struct Option *options, const char *l);
 static char *print_wrap(char *text, size_t len, FILE *fp);
 
-/* */
+/* 
+ * Creates a new OptContext pointer used by the other functions.
+ * The "options" structure has to be allocated manually, see the
+ * header file for member description.
+ */
 OptContext opt_new(int argc, char **argv, struct Option *options)
 {
     OptContext oc;
     int i;
 
-    if (argc < 1 || !argv || !argv[0] || argv[argc] != NULL)
+    if (!options || argc < 1 || !argv || !argv[0] || argv[argc] != NULL)
         return NULL;
     for (i = 1; i < argc; i++)
         if (!argv[i])
             return NULL;
 
     oc = (OptContext) malloc(sizeof(struct OptContext));
+    if (!oc)
+      return NULL;
+
     oc->args = (char **) malloc(sizeof(char *));
-    if (!oc || !oc->args)
-        return NULL;
+    if (!oc->args) {
+      free(oc);
+      return NULL;
+    }
 
     oc->appname = argv[0];
     oc->argc = argc;
@@ -89,7 +105,10 @@ OptContext opt_new(int argc, char **argv, struct Option *options)
     return oc;
 }
 
-/* */
+/* 
+ * Frees all memory associated with "oc".
+ * If "free_args" is false, oc->args is not freed.
+ */
 void opt_free(OptContext oc, int free_args)
 {
     if (free_args)
@@ -97,13 +116,16 @@ void opt_free(OptContext oc, int free_args)
     free(oc);
 }
 
-/* */
+/*
+ * Processes the next option. If no retval has been specified for that
+ * option, it does not return but calls itself again.
+ */
 int opt_next(OptContext oc)
 {
     int opt_n, opt_type, opt_arg_incl, rc;
     struct Option *opt;
 
-    if (oc->major >= oc->argc)
+    if (!oc || oc->major >= oc->argc)
         return 0;
 
     if (oc->ignore)
@@ -161,8 +183,15 @@ int opt_next(OptContext oc)
     return opt->retval ? opt->retval : opt_next(oc);
 }
 
+/*
+ * Outputs human-readable messages of error-code "error"
+ * (returned by opt_next) to stderr.
+ */
 void opt_perror(OptContext oc, int error)
 {
+    if (!oc)
+        return;
+
     switch (error) {
     case OPT_ERROR_NOARG:
         if (oc->minor)
@@ -191,31 +220,39 @@ void opt_perror(OptContext oc, int error)
     }
 }
 
-/* */
+/* Proccesses and returns the next leftover argument. */
 char *opt_get_arg(OptContext oc)
 {
-    return oc->args[oc->args_pos] ? oc->args[oc->args_pos++] : NULL;
+    return (oc && oc->args[oc->args_pos]) ? oc->args[oc->args_pos++] : NULL;
 }
 
-/* */
+/* Returns the next leftover argument. */
 char *opt_peek_arg(OptContext oc)
 {
-    return oc->args[oc->args_pos] ? oc->args[oc->args_pos + 1] : NULL;
+    return (oc && oc->args[oc->args_pos]) ? oc->args[oc->args_pos + 1] : NULL;
 }
 
+/*
+ * After option parsing with opt_next is finished, returns the allocated
+ * list of leftover arguments (similar to argv).
+ */
 char **opt_get_args(OptContext oc)
 {
-    return oc->args;
+    return (oc) ? oc->args : NULL;
 }
 
-/* */
+/* Outputs a GNU-style option description to "fp". */
 void opt_print_descrip(OptContext oc, FILE *fp)
 {
-    struct Option *opts = oc->options;
+    struct Option *opts;
     size_t j, len, cols, left_col, right_col;
     char gap, *env, *desc;
     int i;
 
+    if (!oc || !fp)
+        return;
+
+    opts = oc->options;
     env = getenv("COLUMNS");
     cols = env ? atoi(env) : 80;
 
@@ -254,7 +291,18 @@ void opt_print_descrip(OptContext oc, FILE *fp)
     }
 }
 
-/* */
+/*
+ * Finds the argument to current option in "argv".
+ *
+ * argv: argument vector
+ * opt_type: type of current option
+ * arginfo: information about arg
+ * major, minor: current position in argv
+ * arg_incl: if the arg is included (e.g.: "--file=foobar"),
+ *           set *arg_incl to 1
+ *
+ * Returns the argument or NULL if none was found.
+ */
 static char *find_arg(char **argv, int opt_type, int arginfo,
                       int major, int minor, int *arg_incl)
 {
@@ -375,6 +423,12 @@ static int lookup_long(struct Option *options, const char *l)
     return -1;
 }
 
+/*
+ * Writes at most "len" chars of "text" (NUL-terminated) into "fp".
+ * It doesn't stop in the middle of words.
+ *
+ * Returns the beginning of the still unwritten text.
+ */
 static char *print_wrap(char *text, size_t len, FILE *fp)
 {
     size_t i, text_len;
