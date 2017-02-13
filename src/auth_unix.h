@@ -1,7 +1,7 @@
 /* 
  * auth_unix.h - ...
  *
- * Copyright 2004 Johannes Weißl
+ * Copyright (C) 2004-2017 Johannes Weißl
  *
  * This file is part of xfreeze.
  *
@@ -16,8 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with xfreeze; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with xfreeze.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef AUTH_UNIX_H
