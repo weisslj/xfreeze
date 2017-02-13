@@ -5,8 +5,25 @@ This tool completely locks up your display, using various hacks.
 After starting, you cannot even use Ctrl-Alt-Fn or the SysRq keys (but you
 can still use SSH to login and kill xfreeze).
 
-To unlock the display, you just have to input your password, and press
-ENTER. There is no graphical user interface.
+How to build and install
+------------------------
+
+    autoreconf -i
+    ./configure && make
+    sudo make install
+
+First step is not required for distributed source tarballs.
+
+How to use
+----------
+
+1. Start `xfreeze`
+2. Display is locked
+3. To unlock the display, you just have to input your password, and press
+   ENTER. There is no graphical user interface.
+
+Additional information
+----------------------
 
 If you use PAM (most distributions do), you have to e.g. create a
 xfreeze entry in `/etc/pam.d`:
