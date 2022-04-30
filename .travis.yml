@@ -1,7 +1,0 @@
-language: c
-compiler:
-- clang
-- gcc
-before_install:
-- sudo apt-get install -qq libpam0g-dev
-script: autoreconf -i && ./configure && make
