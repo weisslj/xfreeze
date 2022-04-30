@@ -1,0 +1,18 @@
+name: Test
+on:
+  push:
+  schedule:
+    - cron: '0 0 1 * *'  # monthly
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+    steps:
+      - run: sudo apt-get install libpam0g-dev
+      - uses: actions/checkout@v3
+      - run: autoreconf -i && ./configure && make
+        env:
+          CC: ${{ matrix.compiler }}
